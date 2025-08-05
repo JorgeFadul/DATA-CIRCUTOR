@@ -38,14 +38,14 @@ htmlcov/
 .cache
 .pytest_cache/
 
-# Data / Output
-*.csv
-*.xlsx
-*.xls
-*.json
-*.pdf
-*.txt
-*.zip
+# # Data / Output
+# *.csv
+# *.xlsx
+# *.xls
+# *.json
+# *.pdf
+# *.txt
+# *.zip
 
 # Graphs / Figures
 *.png
