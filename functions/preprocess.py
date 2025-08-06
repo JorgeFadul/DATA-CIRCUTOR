@@ -41,7 +41,6 @@ def sub_dividir_dataframe(df: pd.DataFrame, *, ver_cols: bool = False):
         return [c for c in df.columns if any(pat in c for pat in patterns)]
 
     # POTENCIAS
-    df = df.copy()
     df["P.Activa III T"] = df["P.Activa III"] - df["P.Activa III -"]
     df["P.Inductiva III T"] = df["P.Inductiva III"] - df["P.Inductiva III -"]
     df["P.Capacitiva III T"] = df["P.Capacitiva III"] - df["P.Capacitiva III -"]
@@ -61,6 +60,7 @@ def sub_dividir_dataframe(df: pd.DataFrame, *, ver_cols: bool = False):
     df_potencia = df[potencia_cols]
 
     # ENERGÍA derivada de potencia
+    df["E.Reactiva III M"] = (df["P.Inductiva III"] + df["P.Capacitiva III -"]) * (1/60)
     for col_p in ["P.Activa III T", "P.Reactiva III T", "P.Aparente III T"]:
         df[f"E{col_p[1:]}"] = df[col_p] * (1 / 60)  # 1 min → kWh
 

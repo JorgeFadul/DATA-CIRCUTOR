@@ -19,6 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import math
+from TARIFAS_NATURGY import tarifas_edemet
 
 """Elegir data desde Entorno de Colab (más rápido, requiere cambiar la línea 2 por el nombre del archivo csv)
 
@@ -728,184 +729,184 @@ def calcular_maxima_demanda_por_bloque(df, tipo_demanda,
         print(f"Error al calcular demanda máxima por bloque: {e}")
         return None, None, {}
 
-tarifas_edemet = {
-    "2025-ENE-JUN": {
-        "BTS": {
-            "tipo": "Baja Tensión Simple",
-            "cargo_fijo": 3.16,
-            "bloques": {
-                "11-300": 0.14718,
-                "301-750": 0.20998,
-                "751+": 0.30851
-            },
-            "conexion": 16.68,
-            "cargo_fp": round(0.00874 + 0.00879 + 0.00142, 5)
-        },
-        "BTSH": {
-            "tipo": "Baja Tensión Simple Horaria",
-            "cargo_fijo": 3.07,
-            "bloques": {
-                "punta": 0.37708,
-                "fuera_punta_medio": 0.18126,
-                "fuera_punta_bajo": 0.10926
-            },
-            "conexion": 16.68,
-            "cargo_fp": round(0.00831 + 0.00870 + 0.00140, 5)
-        },
-        "Prepago": {
-            "tipo": "Baja Tensión Prepago",
-            "cargo_fijo": 0.0,
-            "bloques": {
-                "0-300": 0.15458
-            },
-            "conexion": 16.68,
-            "cargo_fp": round(0.00887 + 0.00891 + 0.00145, 5)
-        },
-        "BTD": {
-            "tipo": "Baja Tensión con Demanda Máxima",
-            "cargo_fijo": 5.68,
-            "bloques": {
-                "0-10000": 0.13580,
-                "10001-30000": 0.14176,
-                "30001-50000": 0.15333,
-                "50001+": 0.16469
-            },
-            "conexion": 71.82,
-            "cargo_fp": round(0.00815 + 0.00763 + 0.00134, 5),
-            "cargo_demanda_maxima": 18.31
-        },
-        "BTH": {
-            "tipo": "Baja Tensión por Bloque Horario",
-            "cargo_fijo": 5.69,
-            "bloques": {
-                "punta": 0.26465,
-                "fuera_punta_medio": 0.14420,
-                "fuera_punta_bajo": 0.08021
-            },
-            "conexion": 71.82,
-            "cargo_fp": round(0.01 + 0.00991 + 0.00133, 5),
-            "cargo_demanda_maxima": {
-                "punta": 18.81,
-                "fuera_punta_medio": 2.71,
-                "fuera_punta_bajo": 2.71
-            }
-        },
-        "MTD": {
-            "tipo": "Media Tensión con Demanda Máxima",
-            "cargo_fijo": 14.32,
-            "bloques": {
-                "general": 0.14445
-            },
-            "conexion": 142.00,
-            "cargo_fp": round(0.00815 + 0.00763 + 0.00134, 5),
-            "cargo_demanda_maxima": 20.38
-        },
-        "MTH": {
-            "tipo": "Media Tensión por Bloque Horario",
-            "cargo_fijo": 14.38,
-            "bloques": {
-                "punta": 0.27184,
-                "fuera_punta_medio": 0.15294,
-                "fuera_punta_bajo": 0.08352
-            },
-            "conexion": 142.00,
-            "cargo_fp": round(0.01 + 0.01000 + 0.00133, 5),
-            "cargo_demanda_maxima": {
-                "punta": 17.89,
-                "fuera_punta_medio": 3.10,
-                "fuera_punta_bajo": 3.10
-            }
-        }
-    },
-    "2025-JUL-DIC": {
-        "BTS": {
-            "tipo": "Baja Tensión Simple",
-            "cargo_fijo": 3.15,
-            "bloques": {
-                "11-300": 0.16170,
-                "301-750": 0.23216,
-                "751+": 0.34471
-            },
-            "conexion": 16.63,
-            "cargo_fp": round(0.00869 + 0.01126 + 0.00142, 5)
-        },
-        "BTSH": {
-            "tipo": "Baja Tensión Simple Horaria",
-            "cargo_fijo": 3.05,
-            "bloques": {
-                "punta": 0.42650,
-                "fuera_punta_medio": 0.20015,
-                "fuera_punta_bajo": 0.11740
-            },
-            "conexion": 16.63,
-            "cargo_fp": round(0.00825 + 0.01114 + 0.00140, 5)
-        },
-        "Prepago": {
-            "tipo": "Baja Tensión Prepago",
-            "cargo_fijo": 0.0,
-            "bloques": {
-                "0-300": 0.16823
-            },
-            "conexion": 16.63,
-            "cargo_fp": round(0.00881 + 0.01141 + 0.00145, 5)
-        },
-        "BTD": {
-            "tipo": "Baja Tensión con Demanda Máxima",
-            "cargo_fijo": 5.64,
-            "bloques": {
-                "0-10000": 0.15634,
-                "10001-30000": 0.16309,
-                "30001-50000": 0.17619,
-                "50001+": 0.18905
-            },
-            "conexion": 71.58,
-            "cargo_fp": round(0.00809 + 0.00977 + 0.00134, 5),
-            "cargo_demanda_maxima": 18.62
-        },
-        "BTH": {
-            "tipo": "Baja Tensión por Bloque Horario",
-            "cargo_fijo": 5.65,
-            "bloques": {
-                "punta": 0.30933,
-                "fuera_punta_medio": 0.16917,
-                "fuera_punta_bajo": 0.09491
-            },
-            "conexion": 71.58,
-            "cargo_fp": round(0.00808 + 0.01268 + 0.00133, 5),
-            "cargo_demanda_maxima": {
-                "punta": 19.37,
-                "fuera_punta_medio": 2.55,
-                "fuera_punta_bajo": 2.55
-            }
-        },
-        "MTD": {
-            "tipo": "Media Tensión con Demanda Máxima",
-            "cargo_fijo": 14.23,
-            "bloques": {
-                "general": 0.16591
-            },
-            "conexion": 142.00,
-            "cargo_fp": round(0.00809 + 0.00977 + 0.00134, 5),
-            "cargo_demanda_maxima": 20.86
-        },
-        "MTH": {
-            "tipo": "Media Tensión por Bloque Horario",
-            "cargo_fijo": 14.29,
-            "bloques": {
-                "punta": 0.31767,
-                "fuera_punta_medio": 0.17930,
-                "fuera_punta_bajo": 0.09873
-            },
-            "conexion": 142.00,
-            "cargo_fp": round(0.00808 + 0.01280 + 0.00133, 5),
-            "cargo_demanda_maxima": {
-                "punta": 18.58,
-                "fuera_punta_medio": 2.87,
-                "fuera_punta_bajo": 2.87
-            }
-        }
-    }
-}
+# tarifas_edemet = {
+#     "2025-ENE-JUN": {
+#         "BTS": {
+#             "tipo": "Baja Tensión Simple",
+#             "cargo_fijo": 3.16,
+#             "bloques": {
+#                 "11-300": 0.14718,
+#                 "301-750": 0.20998,
+#                 "751+": 0.30851
+#             },
+#             "conexion": 16.68,
+#             "cargo_fp": round(0.00874 + 0.00879 + 0.00142, 5)
+#         },
+#         "BTSH": {
+#             "tipo": "Baja Tensión Simple Horaria",
+#             "cargo_fijo": 3.07,
+#             "bloques": {
+#                 "punta": 0.37708,
+#                 "fuera_punta_medio": 0.18126,
+#                 "fuera_punta_bajo": 0.10926
+#             },
+#             "conexion": 16.68,
+#             "cargo_fp": round(0.00831 + 0.00870 + 0.00140, 5)
+#         },
+#         "Prepago": {
+#             "tipo": "Baja Tensión Prepago",
+#             "cargo_fijo": 0.0,
+#             "bloques": {
+#                 "0-300": 0.15458
+#             },
+#             "conexion": 16.68,
+#             "cargo_fp": round(0.00887 + 0.00891 + 0.00145, 5)
+#         },
+#         "BTD": {
+#             "tipo": "Baja Tensión con Demanda Máxima",
+#             "cargo_fijo": 5.68,
+#             "bloques": {
+#                 "0-10000": 0.13580,
+#                 "10001-30000": 0.14176,
+#                 "30001-50000": 0.15333,
+#                 "50001+": 0.16469
+#             },
+#             "conexion": 71.82,
+#             "cargo_fp": round(0.00815 + 0.00763 + 0.00134, 5),
+#             "cargo_demanda_maxima": 18.31
+#         },
+#         "BTH": {
+#             "tipo": "Baja Tensión por Bloque Horario",
+#             "cargo_fijo": 5.69,
+#             "bloques": {
+#                 "punta": 0.26465,
+#                 "fuera_punta_medio": 0.14420,
+#                 "fuera_punta_bajo": 0.08021
+#             },
+#             "conexion": 71.82,
+#             "cargo_fp": round(0.01 + 0.00991 + 0.00133, 5),
+#             "cargo_demanda_maxima": {
+#                 "punta": 18.81,
+#                 "fuera_punta_medio": 2.71,
+#                 "fuera_punta_bajo": 2.71
+#             }
+#         },
+#         "MTD": {
+#             "tipo": "Media Tensión con Demanda Máxima",
+#             "cargo_fijo": 14.32,
+#             "bloques": {
+#                 "general": 0.14445
+#             },
+#             "conexion": 142.00,
+#             "cargo_fp": round(0.00815 + 0.00763 + 0.00134, 5),
+#             "cargo_demanda_maxima": 20.38
+#         },
+#         "MTH": {
+#             "tipo": "Media Tensión por Bloque Horario",
+#             "cargo_fijo": 14.38,
+#             "bloques": {
+#                 "punta": 0.27184,
+#                 "fuera_punta_medio": 0.15294,
+#                 "fuera_punta_bajo": 0.08352
+#             },
+#             "conexion": 142.00,
+#             "cargo_fp": round(0.01 + 0.01000 + 0.00133, 5),
+#             "cargo_demanda_maxima": {
+#                 "punta": 17.89,
+#                 "fuera_punta_medio": 3.10,
+#                 "fuera_punta_bajo": 3.10
+#             }
+#         }
+#     },
+#     "2025-JUL-DIC": {
+#         "BTS": {
+#             "tipo": "Baja Tensión Simple",
+#             "cargo_fijo": 3.15,
+#             "bloques": {
+#                 "11-300": 0.16170,
+#                 "301-750": 0.23216,
+#                 "751+": 0.34471
+#             },
+#             "conexion": 16.63,
+#             "cargo_fp": round(0.00869 + 0.01126 + 0.00142, 5)
+#         },
+#         "BTSH": {
+#             "tipo": "Baja Tensión Simple Horaria",
+#             "cargo_fijo": 3.05,
+#             "bloques": {
+#                 "punta": 0.42650,
+#                 "fuera_punta_medio": 0.20015,
+#                 "fuera_punta_bajo": 0.11740
+#             },
+#             "conexion": 16.63,
+#             "cargo_fp": round(0.00825 + 0.01114 + 0.00140, 5)
+#         },
+#         "Prepago": {
+#             "tipo": "Baja Tensión Prepago",
+#             "cargo_fijo": 0.0,
+#             "bloques": {
+#                 "0-300": 0.16823
+#             },
+#             "conexion": 16.63,
+#             "cargo_fp": round(0.00881 + 0.01141 + 0.00145, 5)
+#         },
+#         "BTD": {
+#             "tipo": "Baja Tensión con Demanda Máxima",
+#             "cargo_fijo": 5.64,
+#             "bloques": {
+#                 "0-10000": 0.15634,
+#                 "10001-30000": 0.16309,
+#                 "30001-50000": 0.17619,
+#                 "50001+": 0.18905
+#             },
+#             "conexion": 71.58,
+#             "cargo_fp": round(0.00809 + 0.00977 + 0.00134, 5),
+#             "cargo_demanda_maxima": 18.62
+#         },
+#         "BTH": {
+#             "tipo": "Baja Tensión por Bloque Horario",
+#             "cargo_fijo": 5.65,
+#             "bloques": {
+#                 "punta": 0.30933,
+#                 "fuera_punta_medio": 0.16917,
+#                 "fuera_punta_bajo": 0.09491
+#             },
+#             "conexion": 71.58,
+#             "cargo_fp": round(0.00808 + 0.01268 + 0.00133, 5),
+#             "cargo_demanda_maxima": {
+#                 "punta": 19.37,
+#                 "fuera_punta_medio": 2.55,
+#                 "fuera_punta_bajo": 2.55
+#             }
+#         },
+#         "MTD": {
+#             "tipo": "Media Tensión con Demanda Máxima",
+#             "cargo_fijo": 14.23,
+#             "bloques": {
+#                 "general": 0.16591
+#             },
+#             "conexion": 142.00,
+#             "cargo_fp": round(0.00809 + 0.00977 + 0.00134, 5),
+#             "cargo_demanda_maxima": 20.86
+#         },
+#         "MTH": {
+#             "tipo": "Media Tensión por Bloque Horario",
+#             "cargo_fijo": 14.29,
+#             "bloques": {
+#                 "punta": 0.31767,
+#                 "fuera_punta_medio": 0.17930,
+#                 "fuera_punta_bajo": 0.09873
+#             },
+#             "conexion": 142.00,
+#             "cargo_fp": round(0.00808 + 0.01280 + 0.00133, 5),
+#             "cargo_demanda_maxima": {
+#                 "punta": 18.58,
+#                 "fuera_punta_medio": 2.87,
+#                 "fuera_punta_bajo": 2.87
+#             }
+#         }
+#     }
+# }
 
 # Función auxiliar para calcular el cargo por FP
 def calcular_fp(cargo_fp, consumo_total, fp_mensual):
@@ -1240,66 +1241,66 @@ def graficar_demanda_maxima_polar(dmax_por_bloque_mensual, titulo="Demanda Máxi
     except Exception as e:
         print(f"Error al graficar demanda máxima en formato reloj: {e}")
 
-# --- CONFIGURACIÓN ---
-nombre_archivo = "h azuero principal.txt"
-tipo_energia = 'E.Activa III T'
-tipo_demanda = 'DMAX_15min'
-tarifas_disponibles = ['BTS', 'BTSH', "BTD", "BTH", "MTD", "MTH"]
-periodos_disponibles = ["2025-JUL-DIC"]
+# # --- CONFIGURACIÓN ---
+# nombre_archivo = "h azuero principal.txt"
+# tipo_energia = 'E.Activa III T'
+# tipo_demanda = 'DMAX_15min'
+# tarifas_disponibles = ['BTS', 'BTSH', "BTD", "BTH", "MTD", "MTH"]
+# periodos_disponibles = ["2025-JUL-DIC"]
 
 
-# --- CARGA Y PROCESAMIENTO DE DATOS ---
-df = cargar_datos(nombre_archivo)
-df, df_arm = dividir_dataframe(df)
-df_general, df_potencia, df_fasor, df_energia, df_coste, df_secundario = sub_dividir_dataframe(df)
-df, fp_mensual = agregar_factor_potencia_mensual(df)
-df = procesar_demanda_maxima(df)
+# # --- CARGA Y PROCESAMIENTO DE DATOS ---
+# df = cargar_datos(nombre_archivo)
+# df, df_arm = dividir_dataframe(df)
+# df_general, df_potencia, df_fasor, df_energia, df_coste, df_secundario = sub_dividir_dataframe(df)
+# df, fp_mensual = agregar_factor_potencia_mensual(df)
+# df = procesar_demanda_maxima(df)
 
-# --- ANÁLISIS DE ENERGÍA Y DEMANDA ---
-sum_actual, sum_bloque, energia_extrapolada, consumo_bloques_extrapolado = calcular_sumatoria_energia(df, tipo_energia)
-dmax_total, dmax_fecha, dmax_bloques = calcular_maxima_demanda_por_bloque(df, tipo_demanda)
+# # --- ANÁLISIS DE ENERGÍA Y DEMANDA ---
+# sum_actual, sum_bloque, energia_extrapolada, consumo_bloques_extrapolado = calcular_sumatoria_energia(df, tipo_energia)
+# dmax_total, dmax_fecha, dmax_bloques = calcular_maxima_demanda_por_bloque(df, tipo_demanda)
 
 
 
-# --- VISUALIZACIONES ---
-graficar_consumo_por_bloque(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario")
-graficar_demanda_maxima_por_bloque(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario")
+# # --- VISUALIZACIONES ---
+# graficar_consumo_por_bloque(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario")
+# graficar_demanda_maxima_por_bloque(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario")
 
-graficar_consumo_anillo(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario (Anillo)")
-graficar_demanda_maxima_anillo(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario (Anillo)")
+# graficar_consumo_anillo(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario (Anillo)")
+# graficar_demanda_maxima_anillo(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario (Anillo)")
 
-graficar_consumo_polar(consumo_bloques_extrapolado, titulo="Consumo Mensual en Reloj de 24 Horas")
-graficar_demanda_maxima_polar(dmax_bloques, titulo="Demanda Máxima Mensual en Reloj de 24 Horas")
+# graficar_consumo_polar(consumo_bloques_extrapolado, titulo="Consumo Mensual en Reloj de 24 Horas")
+# graficar_demanda_maxima_polar(dmax_bloques, titulo="Demanda Máxima Mensual en Reloj de 24 Horas")
 
-print("\nGráfica de Energía Activa y Reactiva:")
-graficar_parametros(df, ['E.Activa III T', 'E.Reactiva III T'])
-print("\nGráfica de Demanda Máxima (15 minutos):")
-graficar_parametros(df, [tipo_demanda], lineas_horizontales=[dmax_total])
+# print("\nGráfica de Energía Activa y Reactiva:")
+# graficar_parametros(df, ['E.Activa III T', 'E.Reactiva III T'])
+# print("\nGráfica de Demanda Máxima (15 minutos):")
+# graficar_parametros(df, [tipo_demanda], lineas_horizontales=[dmax_total])
 
-# --- CÁLCULOS DE TARIFAS ---
-# resultados_tarifas = {}
+# # --- CÁLCULOS DE TARIFAS ---
+# # resultados_tarifas = {}
 
-for periodo in periodos_disponibles:
-    print(f"\n\n========== PERIODO: {periodo} ==========\n")
-    # resultados_tarifas[periodo] = {}
+# for periodo in periodos_disponibles:
+#     print(f"\n\n========== PERIODO: {periodo} ==========\n")
+#     # resultados_tarifas[periodo] = {}
 
-    for tarifa_aplicada in tarifas_disponibles:
-        print(f"\n--- TARIFA {tarifa_aplicada} ---")
+#     for tarifa_aplicada in tarifas_disponibles:
+#         print(f"\n--- TARIFA {tarifa_aplicada} ---")
 
-        if tarifa_aplicada == 'BTS':
-            energia, demanda, fp = calcular_BTS(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
-        elif tarifa_aplicada == 'BTSH':
-            energia, demanda, fp = calcular_BTSH(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
-        elif tarifa_aplicada == 'BTD':
-            energia, demanda, fp = calcular_BTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
-        elif tarifa_aplicada == 'BTH':
-            energia, demanda, fp = calcular_BTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
-        elif tarifa_aplicada == 'MTD':
-            energia, demanda, fp = calcular_MTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
-        elif tarifa_aplicada == 'MTH':
-            energia, demanda, fp = calcular_MTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
-        else:
-            continue
+#         if tarifa_aplicada == 'BTS':
+#             energia, demanda, fp = calcular_BTS(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
+#         elif tarifa_aplicada == 'BTSH':
+#             energia, demanda, fp = calcular_BTSH(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
+#         elif tarifa_aplicada == 'BTD':
+#             energia, demanda, fp = calcular_BTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
+#         elif tarifa_aplicada == 'BTH':
+#             energia, demanda, fp = calcular_BTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
+#         elif tarifa_aplicada == 'MTD':
+#             energia, demanda, fp = calcular_MTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
+#         elif tarifa_aplicada == 'MTH':
+#             energia, demanda, fp = calcular_MTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
+#         else:
+#             continue
 
         # resultados_tarifas[periodo][tarifa_aplicada] = {
         #     "energia": energia,
@@ -1331,74 +1332,74 @@ for periodo in periodos_disponibles:
 #     print(f"  Penalización FP: B/. {valores['cargo_fp']:.2f}")
 #     print(f"  TOTAL A PAGAR: B/. {valores['total']:.2f}")
 
-# --- CONFIGURACIÓN ---
-nombre_archivo = "data_dominguez_1m.txt"
-# nombre_archivo = "cmsjb_2.csv"
+# # --- CONFIGURACIÓN ---
+# nombre_archivo = "data_dominguez_1m.txt"
+# # nombre_archivo = "cmsjb_2.csv"
 
-# --- CARGA Y PROCESAMIENTO DE DATOS ---
-df = cargar_datos(nombre_archivo)
-df, df_arm = dividir_dataframe(df)
-df_general, df_potencia, df_fasor, df_energia, df_coste, df_secundario = sub_dividir_dataframe(df)
-df_promedios = promediar_df_por_min(df)
-print("\nDataFrame con promedios diarios:")
-print(df_promedios)
+# # --- CARGA Y PROCESAMIENTO DE DATOS ---
+# df = cargar_datos(nombre_archivo)
+# df, df_arm = dividir_dataframe(df)
+# df_general, df_potencia, df_fasor, df_energia, df_coste, df_secundario = sub_dividir_dataframe(df)
+# df_promedios = promediar_df_por_min(df)
+# print("\nDataFrame con promedios diarios:")
+# print(df_promedios)
 
 
 
-# --- VISUALIZACIONES ---
-# fecha_inicial = fecha_final = "2025-06-24"
-print("\nGráfica de Potencia Activa y Reactiva:")
-# graficar_parametros(df, ['P.Activa III T', 'P.Reactiva III T'],fecha_inicio=fecha_inicial, fecha_fin=fecha_final)
-graficar_parametros(df, ['P.Activa III T', 'P.Reactiva III T'], titulo= "Potencias del Sistema Residencia Domínguez")
-graficar_parametros(df, [("P.Aparente III T","green")], titulo= "Potencias del Sistema Residencia Domínguez")
+# # --- VISUALIZACIONES ---
+# # fecha_inicial = fecha_final = "2025-06-24"
+# print("\nGráfica de Potencia Activa y Reactiva:")
+# # graficar_parametros(df, ['P.Activa III T', 'P.Reactiva III T'],fecha_inicio=fecha_inicial, fecha_fin=fecha_final)
+# graficar_parametros(df, ['P.Activa III T', 'P.Reactiva III T'], titulo= "Potencias del Sistema Residencia Domínguez")
+# graficar_parametros(df, [("P.Aparente III T","green")], titulo= "Potencias del Sistema Residencia Domínguez")
 
-volt_fase = 120
+# volt_fase = 120
 
-graficar_parametros(df, [('Tensión L1',"red"), ('Tensión L2',"blue")], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05], titulo="Voltaje de Fase Residencia Domínguez")
+# graficar_parametros(df, [('Tensión L1',"red"), ('Tensión L2',"blue")], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05], titulo="Voltaje de Fase Residencia Domínguez")
 
-volt_lin = 240
-min_volt = np.min(df["Tensión L12"])
-max_volt = np.max(df["Tensión L12"])
-print(f"V_min: {min_volt} V")
-print(f"V_max: {max_volt} V")
-graficar_parametros(df, ["Tensión L12"], lineas_horizontales=[(min_volt, "black"), (max_volt, "black") ,(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05], titulo="Voltaje de Línea Residencia Domínguez")
+# volt_lin = 240
+# min_volt = np.min(df["Tensión L12"])
+# max_volt = np.max(df["Tensión L12"])
+# print(f"V_min: {min_volt} V")
+# print(f"V_max: {max_volt} V")
+# graficar_parametros(df, ["Tensión L12"], lineas_horizontales=[(min_volt, "black"), (max_volt, "black") ,(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05], titulo="Voltaje de Línea Residencia Domínguez")
 
-graficar_parametros(df, [('P/S',"orange")], lineas_horizontales=[(1, "green"),0.9,-0.9],titulo="Factor de Potencia Instantáneo Residencia Domínguez")
+# graficar_parametros(df, [('P/S',"orange")], lineas_horizontales=[(1, "green"),0.9,-0.9],titulo="Factor de Potencia Instantáneo Residencia Domínguez")
 
-graficar_parametros(df_promedios, ['Tensión L1', 'Tensión L2'], lineas_horizontales=[(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05])
-graficar_parametros(df_promedios, ['Tensión L12'], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05])
+# graficar_parametros(df_promedios, ['Tensión L1', 'Tensión L2'], lineas_horizontales=[(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05])
+# graficar_parametros(df_promedios, ['Tensión L12'], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05])
 
-graficar_parametros(df, ["Corriente L1", "Corriente L2"], titulo="Corrientes de Fase Residencia Domínguez")
-graficar_parametros(df, ["Corriente III"], titulo="Corrientes de Línea Residencia Domínguez")
-graficar_parametros(df_promedios,["Corriente III"])
+# graficar_parametros(df, ["Corriente L1", "Corriente L2"], titulo="Corrientes de Fase Residencia Domínguez")
+# graficar_parametros(df, ["Corriente III"], titulo="Corrientes de Línea Residencia Domínguez")
+# graficar_parametros(df_promedios,["Corriente III"])
 
-graficar_parametros(df_promedios, ["Tensión L12"])
-graficar_parametros(df_promedios, ["P.Activa III T", "P.Reactiva III T"])
+# graficar_parametros(df_promedios, ["Tensión L12"])
+# graficar_parametros(df_promedios, ["P.Activa III T", "P.Reactiva III T"])
 
-graficar_parametros(df_promedios, ["Tensión L12"])
+# graficar_parametros(df_promedios, ["Tensión L12"])
 
-df_sab_dom = promediar_df_por_min(
-    df,
-    dias_semana=['sábado', 'domingo']
-)
+# df_sab_dom = promediar_df_por_min(
+#     df,
+#     dias_semana=['sábado', 'domingo']
+# )
 
-df = procesar_demanda_maxima(df)
-dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df, "DMAX_15min")
-graficar_parametros(df,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total],titulo="Demanda Máxima Instantánea Residencia Domínguez")
+# df = procesar_demanda_maxima(df)
+# dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df, "DMAX_15min")
+# graficar_parametros(df,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total],titulo="Demanda Máxima Instantánea Residencia Domínguez")
 
-df_lun_vie = promediar_df_por_min(
-    df,
-    dias_semana=['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
-)
-# display(df_lun_vie.head())
-df_lun_vie = procesar_demanda_maxima(df_lun_vie)
-dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df_lun_vie, "DMAX_15min")
-graficar_parametros(df_lun_vie,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total])
+# df_lun_vie = promediar_df_por_min(
+#     df,
+#     dias_semana=['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
+# )
+# # display(df_lun_vie.head())
+# df_lun_vie = procesar_demanda_maxima(df_lun_vie)
+# dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df_lun_vie, "DMAX_15min")
+# graficar_parametros(df_lun_vie,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total])
 
-graficar_parametros(df_sab_dom, ["P.Activa III T", "P.Reactiva III T"])
-graficar_parametros(df_lun_vie, ["P.Activa III T", "P.Reactiva III T"])
+# graficar_parametros(df_sab_dom, ["P.Activa III T", "P.Reactiva III T"])
+# graficar_parametros(df_lun_vie, ["P.Activa III T", "P.Reactiva III T"])
 
-graficar_parametros(df, ["Tensión L1L2L3"], lineas_horizontales=[(240, "green"),240*0.95,240*1.05], titulo="Tensión de Línea")
+# graficar_parametros(df, ["Tensión L1L2L3"], lineas_horizontales=[(240, "green"),240*0.95,240*1.05], titulo="Tensión de Línea")
 
-graficar_parametros(df, [("E.Aparente III T","green")], titulo= "Energías del Sistema Residencia Domínguez")
+# graficar_parametros(df, [("E.Aparente III T","green")], titulo= "Energías del Sistema Residencia Domínguez")
 

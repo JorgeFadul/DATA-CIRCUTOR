@@ -7,12 +7,7 @@ from __future__ import annotations
 
 from math import cos, atan
 
-# ----------------------------- CONSTANTES ------------------------------
-
-# (la estructura JSON original se copia íntegra para mantener valores)
-tarifas_edemet: dict = {  #  <-- pega aquí el mismo diccionario que tenías
-    # ... (mismo contenido que en el notebook)
-}
+from TARIFAS_NATURGY import tarifas_edemet
 
 # -----------------------------------------------------------------------
 

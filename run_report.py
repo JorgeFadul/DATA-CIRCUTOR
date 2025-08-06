@@ -1,4 +1,27 @@
-from main import (
+# from main import (
+#     cargar_datos,
+#     dividir_dataframe,
+#     sub_dividir_dataframe,
+#     promediar_df_por_min,
+#     agregar_factor_potencia_mensual,
+#     procesar_demanda_maxima,
+#     calcular_sumatoria_energia,
+#     calcular_maxima_demanda_por_bloque,
+#     graficar_parametros,
+#     graficar_consumo_por_bloque,
+#     graficar_demanda_maxima_por_bloque,
+#     graficar_consumo_anillo,
+#     graficar_demanda_maxima_anillo,
+#     graficar_consumo_polar,
+#     graficar_demanda_maxima_polar,
+#     calcular_BTS,
+#     calcular_BTSH,
+#     calcular_BTD,
+#     calcular_BTH,
+#     calcular_MTD,
+#     calcular_MTH,
+# )
+from functions import (
     cargar_datos,
     dividir_dataframe,
     sub_dividir_dataframe,
@@ -19,10 +42,8 @@ from main import (
     calcular_BTD,
     calcular_BTH,
     calcular_MTD,
-    calcular_MTH,
+    calcular_MTH
 )
-
-
 
 
 # --- CONFIGURACIÓN ---
@@ -35,6 +56,8 @@ periodos_disponibles = ["2025-JUL-DIC"]
 
 # --- CARGA Y PROCESAMIENTO DE DATOS ---
 df = cargar_datos(nombre_archivo)
+
+
 df, df_arm = dividir_dataframe(df)
 df_general, df_potencia, df_fasor, df_energia, df_coste, df_secundario = sub_dividir_dataframe(df)
 df, fp_mensual = agregar_factor_potencia_mensual(df)
@@ -46,75 +69,94 @@ dmax_total, dmax_fecha, dmax_bloques = calcular_maxima_demanda_por_bloque(df, ti
 
 
 
-# --- VISUALIZACIONES ---
-graficar_consumo_por_bloque(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario")
-graficar_demanda_maxima_por_bloque(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario")
+# # --- VISUALIZACIONES ---
+# graficar_consumo_por_bloque(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario")
+# graficar_demanda_maxima_por_bloque(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario")
 
-graficar_consumo_anillo(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario (Anillo)")
-graficar_demanda_maxima_anillo(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario (Anillo)")
+# graficar_consumo_anillo(consumo_bloques_extrapolado, titulo="Consumo Mensual por Bloque Horario (Anillo)")
+# graficar_demanda_maxima_anillo(dmax_bloques, titulo="Demanda Máxima Mensual por Bloque Horario (Anillo)")
 
-graficar_consumo_polar(consumo_bloques_extrapolado, titulo="Consumo Mensual en Reloj de 24 Horas")
-graficar_demanda_maxima_polar(dmax_bloques, titulo="Demanda Máxima Mensual en Reloj de 24 Horas")
+# graficar_consumo_polar(consumo_bloques_extrapolado, titulo="Consumo Mensual en Reloj de 24 Horas")
+# graficar_demanda_maxima_polar(dmax_bloques, titulo="Demanda Máxima Mensual en Reloj de 24 Horas")
 
-print("\nGráfica de Energía Activa y Reactiva:")
-graficar_parametros(df, ['E.Activa III T', 'E.Reactiva III T'])
-print("\nGráfica de Demanda Máxima (15 minutos):")
-graficar_parametros(df, [tipo_demanda], lineas_horizontales=[dmax_total])
+# print("\nGráfica de Energía Activa y Reactiva:")
+# graficar_parametros(df, ['E.Activa III T', 'E.Reactiva III T'])
+# print("\nGráfica de Demanda Máxima (15 minutos):")
+# graficar_parametros(df, [tipo_demanda], lineas_horizontales=[dmax_total])
 
 # --- CÁLCULOS DE TARIFAS ---
-# resultados_tarifas = {}
+resultados_tarifas = {}
 
 for periodo in periodos_disponibles:
-    print(f"\n\n========== PERIODO: {periodo} ==========\n")
-    # resultados_tarifas[periodo] = {}
+    print(f"\n\n========== PERIODO: {periodo} ==========")
+    resultados_tarifas[periodo] = {}
 
-    for tarifa_aplicada in tarifas_disponibles:
-        print(f"\n--- TARIFA {tarifa_aplicada} ---")
+    for tarifa in tarifas_disponibles:
 
-        if tarifa_aplicada == 'BTS':
-            energia, demanda, fp = calcular_BTS(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
-        elif tarifa_aplicada == 'BTSH':
-            energia, demanda, fp = calcular_BTSH(consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo)
-        elif tarifa_aplicada == 'BTD':
-            energia, demanda, fp = calcular_BTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
-        elif tarifa_aplicada == 'BTH':
-            energia, demanda, fp = calcular_BTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
-        elif tarifa_aplicada == 'MTD':
-            energia, demanda, fp = calcular_MTD(consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo)
-        elif tarifa_aplicada == 'MTH':
-            energia, demanda, fp = calcular_MTH(consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo)
+        # ── Llama a la función correcta ───────────────────────────────────────────
+        if tarifa == "BTS":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_BTS(
+                consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo
+            )
+        elif tarifa == "BTSH":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_BTSH(
+                consumo_bloques_extrapolado, fp_mensual, dmax_total, periodo
+            )
+        elif tarifa == "BTD":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_BTD(
+                consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo
+            )
+        elif tarifa == "BTH":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_BTH(
+                consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo
+            )
+        elif tarifa == "MTD":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_MTD(
+                consumo_bloques_extrapolado, fp_mensual, dmax_bloques, periodo
+            )
+        elif tarifa == "MTH":
+            cargo_energia, cargo_demanda, cargo_fp = calcular_MTH(
+                consumo_bloques_extrapolado, dmax_bloques, fp_mensual, periodo
+            )
         else:
             continue
 
-        # resultados_tarifas[periodo][tarifa_aplicada] = {
-        #     "energia": energia,
-        #     "demanda": demanda,
-        #     "fp": fp
-        # }
+        total = cargo_energia + cargo_demanda + cargo_fp
+
+        # ── Guarda TODO lo que necesitas para el resumen ─────────────────────────
+        resultados_tarifas[periodo][tarifa] = {
+            "cargo_energia": cargo_energia,
+            "cargo_demanda": cargo_demanda,
+            "cargo_fp": cargo_fp,
+            "total": total,
+        }
+
+# --- INFORME FINAL COMPARATIVO ---
+print("\n===== INFORME COMPARATIVO ENTRE TARIFAS =====")
+print(f"Energía mensual real: {sum_actual:.2f} kWh")
+print(f"Energía mensual extrapolada: {energia_extrapolada:.2f} kWh")
+
+print("\nConsumo por bloques (kWh, extrapolado):")
+for bloque, val in consumo_bloques_extrapolado.items():
+    print(f"  {bloque}: {val:.2f} kWh")
+
+print(f"\nDemanda máxima mensual (promedio 15 min): {dmax_total:.2f} kW")
+print("Demanda máxima por bloque (kW):")
+for bloque, val in dmax_bloques.items():
+    print(f"  {bloque}: {val:.2f} kW")
 
 
-# # --- INFORME FINAL COMPARATIVO ---
-# print("\n===== INFORME COMPARATIVO ENTRE TARIFAS =====")
-# print(f"Energía mensual real: {sum_actual:.2f} kWh")
-# print(f"Energía mensual extrapolada: {energia_extrapolada:.2f} kWh")
-# print("\nConsumo por bloques (kWh, extrapolado):")
-# for bloque, val in consumo_bloques_extrapolado.items():
-#     print(f"  {bloque}: {val:.2f} kWh")
+print(f"\nFactor de potencia mensual: {fp_mensual:.4f}")
 
-# print(f"\nDemanda máxima mensual (promedio 15min): {dmax_total:.2f} kW")
-# print("Demanda máxima por bloque (kW):")
-# for bloque, val in dmax_bloques.items():
-#     print(f"  {bloque}: {val:.2f} kW")
-
-# print(f"\nFactor de Potencia mensual: {fp_mensual:.4f}")
-
-# print("\n--- COMPARACIÓN DE RESULTADOS POR TARIFA ---")
-# for tarifa, valores in resultados_tarifas.items():
-#     print(f"\nTARIFA {tarifa}:")
-#     print(f"  Cargo por energía: B/. {valores['cargo_energia']:.2f}")
-#     print(f"  Cargo por demanda: B/. {valores['cargo_demanda']:.2f}")
-#     print(f"  Penalización FP: B/. {valores['cargo_fp']:.2f}")
-#     print(f"  TOTAL A PAGAR: B/. {valores['total']:.2f}")
+print("\n--- COMPARACIÓN DE RESULTADOS POR TARIFA Y PERIODO ---")
+for periodo, tarifas in resultados_tarifas.items():
+    print(f"\nPERIODO {periodo}:")
+    for tarifa, valores in tarifas.items():
+        print(f"  TARIFA {tarifa}:")
+        print(f"    Cargo por energía:   B/. {valores['cargo_energia']:.2f}")
+        print(f"    Cargo por demanda:   B/. {valores['cargo_demanda']:.2f}")
+        print(f"    Penalización FP:     B/. {valores['cargo_fp']:.2f}")
+        print(f"    TOTAL A PAGAR:       B/. {valores['total']:.2f}")
 
 
 '''
