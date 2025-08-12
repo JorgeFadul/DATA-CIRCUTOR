@@ -119,33 +119,55 @@ def sub_dividir_dataframe(df: pd.DataFrame, *, ver_cols: bool = False):
     )
 
 
-def promediar_df_por_min(df: pd.DataFrame, dias_semana: list[str] | None = None) -> pd.DataFrame:
+def promediar_df_por_min(df, dias_semana=None):
     """
-    Devuelve un DataFrame con el promedio de cada minuto del día, opcionalmente
-    filtrando por lista de días en español.
-    """
-    df = df.copy()
-    df["Fecha/hora"] = pd.to_datetime(df["Fecha/hora"])
-    df["day_name_en"] = df["Fecha/hora"].dt.day_name()
+    Calcula el promedio de cada columna numérica para cada minuto del día,
+    con opción de filtrar por días específicos de la semana.
+    El índice resultante 'Fecha/hora' tendrá la fecha ficticia 1900-01-01.
 
+    Args:
+        df (pd.DataFrame): DataFrame con columna 'Fecha/hora' en formato datetime.
+        dias_semana (list, optional): Lista de días en español (ej. ['lunes', 'martes']).
+                                      Si None, usa todos los días.
+
+    Returns:
+        pd.DataFrame: DataFrame con promedio para cada minuto del día
+                      con índice 'Fecha/hora' (1000-01-01 HH:MM).
+    """
+    # Copia para no modificar el original
+    df_copy = df.copy()
+
+    # Asegurar datetime
+    df_copy['Fecha/hora'] = pd.to_datetime(df_copy['Fecha/hora'])
+
+    # Crear columna de nombre de día en inglés
+    df_copy['day_name_en'] = df_copy['Fecha/hora'].dt.day_name()
+
+    # Mapeo de días inglés -> español
     day_map = {
-        "Monday": "lunes",
-        "Tuesday": "martes",
-        "Wednesday": "miércoles",
-        "Thursday": "jueves",
-        "Friday": "viernes",
-        "Saturday": "sábado",
-        "Sunday": "domingo",
+        'Monday': 'lunes',
+        'Tuesday': 'martes',
+        'Wednesday': 'miércoles',
+        'Thursday': 'jueves',
+        'Friday': 'viernes',
+        'Saturday': 'sábado',
+        'Sunday': 'domingo'
     }
-    df["dia_nombre"] = df["day_name_en"].map(day_map)
+    df_copy['dia_nombre'] = df_copy['day_name_en'].map(day_map)
 
+    # Filtrar por días si se indica
     if dias_semana:
         dias_semana = [d.lower() for d in dias_semana]
-        df = df[df["dia_nombre"].isin(dias_semana)]
+        df_copy = df_copy[df_copy['dia_nombre'].isin(dias_semana)]
 
-    df["Fecha/hora"] = pd.to_datetime(
-        "1900-01-01 " + df["Fecha/hora"].dt.strftime("%H:%M"), format="%Y-%m-%d %H:%M"
+    # Extraer hora y minuto y asignarle directamente la fecha ficticia 1000-01-01
+    df_copy['Fecha/hora'] = pd.to_datetime(
+        '1900-01-01 ' + df_copy['Fecha/hora'].dt.strftime('%H:%M'),
+        format='%Y-%m-%d %H:%M'
     )
 
-    numeric = df.select_dtypes(include="number").columns
-    return df.groupby("Fecha/hora")[numeric].mean().sort_index()
+    # Promediar columnas numéricas por cada minuto del día
+    numeric_cols = df_copy.select_dtypes(include=np.number).columns.tolist()
+    df_promedio = df_copy.groupby('Fecha/hora')[numeric_cols].mean().sort_index()
+
+    return df_promedio

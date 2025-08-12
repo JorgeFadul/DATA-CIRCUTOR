@@ -91,31 +91,75 @@ def agregar_factor_potencia_mensual(
     return df, fp_m
 
 
-def procesar_demanda_maxima(df_original: pd.DataFrame) -> pd.DataFrame:
+def procesar_demanda_maxima(df_original):
     """
-    Genera la columna 'DMAX_15min' según la metodología SDATA*.
+    Procesa la demanda máxima calculando la media móvil de 15 minutos desplazada
+    cada 5 minutos en 5 conjuntos (SDATA1..SDATA5). Aplica la misma lógica tanto
+    para datos históricos como para datos promediados (1900-01-01).
+
+    Args:
+        df_original (pd.DataFrame): Debe tener columna o índice 'Fecha/hora' y 'P.Activa III'.
+
+    Returns:
+        tuple: (DataFrame con 'DMAX_15min', fila con demanda máxima)
     """
-    df = df_original.copy()
-    if "Fecha/hora" in df.columns:
-        df["Fecha/hora"] = pd.to_datetime(df["Fecha/hora"], dayfirst=True, errors="coerce")
-    else:
-        raise KeyError("'Fecha/hora' no encontrada")
+    try:
+        df = df_original.copy()
 
-    df["P.Activa III NN"] = df["P.Activa III T"].clip(lower=0)
-    df = df.dropna(subset=["Fecha/hora"]).sort_values("Fecha/hora").reset_index(drop=True)
+        # Verificar si Fecha/hora es columna o índice
+        if 'Fecha/hora' in df.columns:
+            df['Fecha/hora'] = pd.to_datetime(df['Fecha/hora'], dayfirst=True, errors='coerce')
+        elif isinstance(df.index, pd.DatetimeIndex):
+            df = df.reset_index().rename(columns={'index': 'Fecha/hora'})
+        else:
+            raise KeyError("El DataFrame no tiene columna o índice 'Fecha/hora' válido.")
 
-    sdata = pd.DataFrame({"Fecha/hora": df["Fecha/hora"]})
-    for offset in range(5):
-        col = f"SDATA{offset+1}"
-        samples = df["P.Activa III NN"].iloc[offset::5].reset_index(drop=True)
-        samples = samples.repeat(5).reset_index(drop=True).iloc[: len(df)]
-        sdata[col] = samples
+        # Limpiar datos
+        df['P.Activa III NN'] = df['P.Activa III T'].clip(lower=0)
 
-    rolling = sdata.set_index("Fecha/hora").rolling("15min").mean().reset_index()
-    sdata_cols = [c for c in rolling.columns if c.startswith("SDATA")]
-    df_original["DMAX_15min"] = rolling[sdata_cols].mean(axis=1)
+        df = df.dropna(subset=['Fecha/hora', 'P.Activa III NN']).sort_values(by='Fecha/hora').reset_index(drop=True)
 
-    return df_original
+
+        # Crear DataFrame para SDATAS
+        df_dmax = pd.DataFrame({'Fecha/hora': df['Fecha/hora']})
+
+        # Crear SDATA1 a SDATA5 desplazadas cada 5 minutos
+        for offset in range(5):
+            sdata_name = f'SDATA{offset + 1}'
+            muestras = df['P.Activa III NN'].iloc[offset::5].reset_index(drop=True)
+            muestras_expandida = muestras.repeat(5).reset_index(drop=True).iloc[:len(df)]
+            df_dmax[sdata_name] = muestras_expandida
+
+        # Calcular media móvil de 15 minutos por SDATA
+        df_max15 = df_dmax[['Fecha/hora']].copy()
+        sdata_cols = [col for col in df_dmax.columns if col.startswith("SDATA")]
+
+        for col in sdata_cols:
+            df_max15[col] = df_dmax[col].rolling(window=15, min_periods=15).mean()
+
+        # Promedio entre todas las SDATA
+        df_max15['SDATA_PROM'] = df_max15[sdata_cols].mean(axis=1)
+
+        # Resultado final
+        df['DMAX_15min'] = df_max15['SDATA_PROM'].values
+        df_original['DMAX_15min'] = df['DMAX_15min']
+
+        # Buscar el máximo (ignorando NaN)
+        df_max = df.dropna(subset=['DMAX_15min'])
+        if df_max.empty:
+            print("No hay suficientes datos para calcular la media móvil de 15 minutos.")
+            return None, None
+
+        dmax_fila = df_max.loc[df_max['DMAX_15min'].idxmax()]
+
+        print(f"\nDemanda máxima encontrada: {dmax_fila['Fecha/hora']} → {dmax_fila['DMAX_15min']:.2f} kW")
+
+        return df
+
+    except Exception as e:
+        print(f"Error al procesar demanda máxima: {e}")
+        return None, None
+
 
 
 def calcular_maxima_demanda_por_bloque(
@@ -152,3 +196,5 @@ def calcular_maxima_demanda_por_bloque(
         dmax_bloq.setdefault(b, 0)
 
     return dmax_total, dmax_instant, dmax_bloq
+
+
