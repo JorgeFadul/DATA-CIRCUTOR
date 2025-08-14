@@ -1,5 +1,10 @@
+
+## Archivo que solo contiene las tarifas en un diccionario desde el 2025 hacia adelante, por favor colocar las siguientes luego de "2025-JUL-DIC"
+# (Puede que en el futuro necesite hacerse mejor)
+
+
 tarifas_edemet = {
-    "2025-ENE-JUN": {
+    "2025-ENE-JUN": {                                               # TARIFAS EDEMET - 2025 - ENE - JUN
         "BTS": {
             "tipo": "Baja Tensión Simple",
             "cargo_fijo": 3.16,
@@ -87,7 +92,7 @@ tarifas_edemet = {
             }
         }
     },
-    "2025-JUL-DIC": {
+    "2025-JUL-DIC": {                                                   # TARIFAS EDEMET - 2025 - JUL - DIC
         "BTS": {
             "tipo": "Baja Tensión Simple",
             "cargo_fijo": 3.15,
@@ -175,4 +180,5 @@ tarifas_edemet = {
             }
         }
     }
+                                                                        # NOTA: COLOCAR AQUÍ TARIFAS 2026
 }
