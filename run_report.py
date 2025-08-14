@@ -77,12 +77,19 @@ df_lun_vie = procesar_demanda_maxima(df_lun_vie)
 dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df_lun_vie, "DMAX_15min")
 graficar_parametros(df_lun_vie,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total])
 
+df_prom_total = promediar_df_por_min(
+    df,
+)
+df_prom_total = procesar_demanda_maxima(df_prom_total)
+dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df_prom_total, "DMAX_15min")
+graficar_parametros(df_prom_total,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total])
+
 
 # --- VISUALIZACIONES ---
 
-graficar_parametros(df, [('Tensión L1',"red"), ('Tensión L2',"blue")], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05], titulo="Tensión de Fase")
-graficar_parametros(df, ["Tensión L1L2L3"], lineas_horizontales=[(volt_linea, "green"),volt_linea_max,volt_fase_min], titulo="Tensión de Línea")
-graficar_parametros(df, [('P/S',"orange")], lineas_horizontales=[(1, "green"),0.9,-0.9],titulo="Factor de Potencia Instantáneo")
+graficar_parametros(df, [('Tensión L1',"red"), ('Tensión L2',"blue"), ("Tensión L3", "yellow")], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05], limite_inferior=volt_fase_min-30, limite_superior=volt_fase_max+30, titulo="Tensión de Fase")
+graficar_parametros(df, ["Tensión L1L2L3"], lineas_horizontales=[(volt_linea, "green"),volt_linea_max,volt_linea_min], limite_inferior=volt_linea_min-30, limite_superior=volt_linea_max+30, titulo="Tensión de Línea")
+graficar_parametros(df, [('P/S',"orange")], lineas_horizontales=[(1, "green"),0.9,-0.9], limite_inferior=np.min(df["P/S"])-0.1, limite_superior=np.max(df["P/S"])+0.1,titulo="Factor de Potencia Instantáneo")
 
 graficar_parametros(df_sab_dom, ["P.Activa III T", "P.Reactiva III T"])
 graficar_parametros(df_lun_vie, ["P.Activa III T", "P.Reactiva III T"])
@@ -182,56 +189,4 @@ for periodo, tarifas in resultados_tarifas.items():
         print(f"    Penalización FP:     B/. {valores['cargo_fp']:.2f}")
         print(f"    TOTAL A PAGAR:       B/. {valores['total']:.2f}")
 
-'''
-
-volt_fase = 120
-
-graficar_parametros(df, [('Tensión L1',"red"), ('Tensión L2',"blue")], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05], titulo="Voltaje de Fase Residencia Domínguez")
-
-volt_lin = 240
-min_volt = np.min(df["Tensión L12"])
-max_volt = np.max(df["Tensión L12"])
-print(f"V_min: {min_volt} V")
-print(f"V_max: {max_volt} V")
-graficar_parametros(df, ["Tensión L12"], lineas_horizontales=[(min_volt, "black"), (max_volt, "black") ,(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05], titulo="Voltaje de Línea Residencia Domínguez")
-
-graficar_parametros(df, [('P/S',"orange")], lineas_horizontales=[(1, "green"),0.9,-0.9],titulo="Factor de Potencia Instantáneo Residencia Domínguez")
-
-graficar_parametros(df_promedios, ['Tensión L1', 'Tensión L2'], lineas_horizontales=[(volt_lin, "green"),volt_lin*0.95,volt_lin*1.05])
-graficar_parametros(df_promedios, ['Tensión L12'], lineas_horizontales=[(volt_fase, "green"),volt_fase*0.95,volt_fase*1.05])
-
-graficar_parametros(df, ["Corriente L1", "Corriente L2"], titulo="Corrientes de Fase Residencia Domínguez")
-graficar_parametros(df, ["Corriente III"], titulo="Corrientes de Línea Residencia Domínguez")
-graficar_parametros(df_promedios,["Corriente III"])
-
-graficar_parametros(df_promedios, ["Tensión L12"])
-graficar_parametros(df_promedios, ["P.Activa III T", "P.Reactiva III T"])
-
-graficar_parametros(df_promedios, ["Tensión L12"])
-
-df_sab_dom = promediar_df_por_min(
-    df,
-    dias_semana=['sábado', 'domingo']
-)
-
-df = procesar_demanda_maxima(df)
-dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df, "DMAX_15min")
-graficar_parametros(df,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total],titulo="Demanda Máxima ")
-
-df_lun_vie = promediar_df_por_min(
-    df,
-    dias_semana=['lunes', 'martes', 'miércoles', 'jueves', 'viernes']
-)
-# display(df_lun_vie.head())
-df_lun_vie = procesar_demanda_maxima(df_lun_vie)
-dmax_prom_total, dmax_hora, dmax_bloq = calcular_maxima_demanda_por_bloque(df_lun_vie, "DMAX_15min")
-graficar_parametros(df_lun_vie,["P.Activa III T","DMAX_15min"], lineas_horizontales=[dmax_prom_total])
-
-graficar_parametros(df_sab_dom, ["P.Activa III T", "P.Reactiva III T"])
-graficar_parametros(df_lun_vie, ["P.Activa III T", "P.Reactiva III T"])
-
-graficar_parametros(df, ["Tensión L1L2L3"], lineas_horizontales=[(240, "green"),240*0.95,240*1.05], titulo="Tensión de Línea")
-
-graficar_parametros(df, [("E.Aparente III T","green")], titulo= "Energías del Sistema Residencia Domínguez")
-
-'''
+print("\n===== FIN DEL INFORME =====")
