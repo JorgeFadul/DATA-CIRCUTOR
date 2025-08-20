@@ -1,26 +1,4 @@
-from functions import (
-    cargar_datos,
-    dividir_dataframe,
-    sub_dividir_dataframe,
-    promediar_df_por_min,
-    agregar_factor_potencia_mensual,
-    procesar_demanda_maxima,
-    calcular_sumatoria_energia,
-    calcular_maxima_demanda_por_bloque,
-    graficar_parametros,
-    graficar_consumo_por_bloque,
-    graficar_demanda_maxima_por_bloque,
-    graficar_consumo_anillo,
-    graficar_demanda_maxima_anillo,
-    graficar_consumo_polar,
-    graficar_demanda_maxima_polar,
-    calcular_BTS,
-    calcular_BTSH,
-    calcular_BTD,
-    calcular_BTH,
-    calcular_MTD,
-    calcular_MTH
-)
+from functions import *
 import numpy as np
 
 
