@@ -32,7 +32,7 @@ def dividir_dataframe(df: pd.DataFrame, *, ver_df: bool = False) -> tuple[pd.Dat
     return df_main, df_arm
 
 
-def sub_dividir_dataframe(df: pd.DataFrame, *, ver_cols: bool = False):
+def sub_dividir_dataframe(df: pd.DataFrame, *, time_interval: int = 60, ver_cols: bool = False):
     """
     Crea subconjuntos de columnas por categoría:
       general, potencia, fasor, energía, coste, secundario
@@ -60,9 +60,9 @@ def sub_dividir_dataframe(df: pd.DataFrame, *, ver_cols: bool = False):
     df_potencia = df[potencia_cols]
 
     # ENERGÍA derivada de potencia
-    df["E.Reactiva III M"] = (df["P.Inductiva III"] + df["P.Capacitiva III -"]) * (1/60)
+    df["E.Reactiva III M"] = (df["P.Inductiva III"] + df["P.Capacitiva III -"]) * (1/time_interval)
     for col_p in ["P.Activa III T", "P.Reactiva III T", "P.Aparente III T"]:
-        df[f"E{col_p[1:]}"] = df[col_p] * (1 / 60)  # 1 min → kWh
+        df[f"E{col_p[1:]}"] = df[col_p] * (1 / time_interval)  # 1 min → kWh
 
     # GENERAL
     general_cols = select_cols(

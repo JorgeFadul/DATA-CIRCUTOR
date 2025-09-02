@@ -6,8 +6,423 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from . import visualize
 from .blocks import clasificar_bloque
 
+def _fusionar_eventos(eventos: list[dict], max_diff: pd.Timedelta, df_col: pd.Series, tipo_evento: str) -> list[dict]:
+    """
+    Fusiona eventos consecutivos si el tiempo entre ellos es menor a max_diff.
+    """
+    if not eventos:
+        return []
+
+    eventos_fusionados = []
+    if not eventos:
+        return eventos_fusionados
+
+    evento_actual = eventos[0].copy()
+
+    for siguiente_evento in eventos[1:]:
+        siguiente_evento = siguiente_evento.copy()
+        if (siguiente_evento['inicio'] - evento_actual['fin']) <= max_diff:
+            # Fusionar evento
+            evento_actual['fin'] = siguiente_evento['fin']
+        else:
+            # Guardar el evento actual y empezar uno nuevo
+            eventos_fusionados.append(evento_actual)
+            evento_actual = siguiente_evento
+    
+    eventos_fusionados.append(evento_actual) # No olvidar el último evento
+
+    # Recalcular duración y valores extremos para los eventos fusionados
+    for evento in eventos_fusionados:
+        evento['duracion'] = evento['fin'] - evento['inicio']
+        if tipo_evento != 'apagon':
+            periodo_evento = df_col[evento['inicio']:evento['fin']]
+            if not periodo_evento.empty:
+                if tipo_evento == 'alto':
+                    evento['valor_maximo'] = periodo_evento.max()
+                    evento['fecha_valor_maximo'] = periodo_evento.idxmax()
+                elif tipo_evento == 'bajo':
+                    evento['valor_minimo'] = periodo_evento.min()
+                    evento['fecha_valor_minimo'] = periodo_evento.idxmin()
+            else: # Handle empty period
+                if tipo_evento == 'alto':
+                    evento['valor_maximo'] = np.nan
+                    evento['fecha_valor_maximo'] = None
+                elif tipo_evento == 'bajo':
+                    evento['valor_minimo'] = np.nan
+                    evento['fecha_valor_minimo'] = None
+
+    return eventos_fusionados
+
+def _detectar_eventos_con_estado(estado: pd.Series) -> list[dict]:
+    """
+    Detecta inicios y fines de eventos usando una máquina de estados para robustez.
+    """
+    eventos = []
+    en_evento = False
+    inicio_evento = None
+
+    if not estado.index.is_monotonic_increasing:
+        estado = estado.sort_index()
+
+    cambios = estado.astype(int).diff()
+
+    # Manejar el estado inicial
+    if estado.iloc[0]:
+        en_evento = True
+        inicio_evento = estado.index[0]
+
+    for timestamp, cambio in cambios.items():
+        if cambio == 1 and not en_evento:
+            en_evento = True
+            inicio_evento = timestamp
+        elif cambio == -1 and en_evento:
+            en_evento = False
+            if inicio_evento is not None:
+                eventos.append({'inicio': inicio_evento, 'fin': timestamp})
+                inicio_evento = None
+
+    if en_evento and inicio_evento is not None:
+        eventos.append({'inicio': inicio_evento, 'fin': estado.index.max()})
+
+    return eventos
+
+def voltaje(df: pd.DataFrame, voltaje_referencia_ll: float | None = None, voltaje_referencia_ln: float | None = None, extended_report: bool = False, graficar: bool = False) -> dict:
+    """
+    Calcula estadísticas de voltaje, los compara con límites permitidos y analiza
+    los periodos fuera de rango con histéresis y fusión de eventos.
+    El análisis de eventos se realiza únicamente sobre la columna 'Tensión L1L2L3'.
+    """
+    df_copy = df.copy()
+    if 'Fecha/hora' not in df_copy.columns:
+        raise ValueError("El DataFrame debe tener una columna 'Fecha/hora'.")
+    df_copy['Fecha/hora'] = pd.to_datetime(df_copy['Fecha/hora'])
+    df_copy = df_copy.sort_values(by='Fecha/hora').set_index('Fecha/hora')
+
+    # Columnas a analizar y reportar
+    cols_ll = ['Tensión L1L2L3']
+    cols_ln = ['Tensión L1', 'Tensión L2', 'Tensión L3']
+    cols_reporte = [col for col in cols_ll + cols_ln if col in df_copy.columns]
+
+    limites = {}
+    if voltaje_referencia_ll is not None:
+        limites["linea_linea"] = {
+            "referencia": voltaje_referencia_ll,
+            "max_permitido": voltaje_referencia_ll * 1.05,
+            "min_permitido": voltaje_referencia_ll * 0.95,
+            "histeresis": voltaje_referencia_ll * 0.01
+        }
+    if voltaje_referencia_ln is not None:
+        limites["linea_neutro"] = {
+            "referencia": voltaje_referencia_ln,
+            "max_permitido": voltaje_referencia_ln * 1.05,
+            "min_permitido": voltaje_referencia_ln * 0.95,
+            "histeresis": voltaje_referencia_ln * 0.01
+        }
+    
+    stats_voltaje = {col: {'promedio': df_copy[col].mean(), 'maximo': df_copy[col].max(), 'minimo': df_copy[col].min()} for col in cols_reporte}
+
+    analisis_eventos = {}
+    # --- Análisis de eventos solo para Tensión L1L2L3 ---
+    col_analisis = 'Tensión L1L2L3'
+    if col_analisis in df_copy.columns and "linea_linea" in limites:
+        limite_actual = limites["linea_linea"]
+        v = df_copy[col_analisis]
+        histeresis = limite_actual['histeresis']
+        
+        # Alto voltaje
+        umbral_alto_inicio = limite_actual['max_permitido']
+        umbral_alto_fin = umbral_alto_inicio - histeresis
+        estado_alto = pd.Series(pd.NA, index=v.index, dtype='boolean')
+        estado_alto[v > umbral_alto_inicio] = True
+        estado_alto[v < umbral_alto_fin] = False
+        estado_alto = estado_alto.ffill().fillna(False)
+        eventos_alto_raw = _detectar_eventos_con_estado(estado_alto)
+
+        # Bajo voltaje
+        umbral_bajo_inicio = limite_actual['min_permitido']
+        umbral_bajo_fin = umbral_bajo_inicio + histeresis
+        estado_bajo = pd.Series(pd.NA, index=v.index, dtype='boolean')
+        estado_bajo[v < umbral_bajo_inicio] = True
+        estado_bajo[v > umbral_bajo_fin] = False
+        estado_bajo = estado_bajo.ffill().fillna(False)
+        estado_bajo &= (v != 0)
+        eventos_bajo_raw = _detectar_eventos_con_estado(estado_bajo)
+
+        max_diff = pd.Timedelta(minutes=10)
+        eventos_alto_final = _fusionar_eventos(eventos_alto_raw, max_diff, v, 'alto')
+        eventos_bajo_final = _fusionar_eventos(eventos_bajo_raw, max_diff, v, 'bajo')
+
+        if eventos_alto_final or eventos_bajo_final:
+            analisis_eventos[col_analisis] = {
+                'tiempo_total_fuera_de_rango': sum([e['duracion'] for e in eventos_alto_final], pd.Timedelta(0)) + sum([e['duracion'] for e in eventos_bajo_final], pd.Timedelta(0)),
+                'eventos_de_voltaje_alto': eventos_alto_final,
+                'eventos_de_voltaje_bajo': eventos_bajo_final
+            }
+
+    if graficar:
+        # Gráfico Línea-Línea
+        if "linea_linea" in limites and col_analisis in df_copy.columns:
+            lim_ll = limites["linea_linea"]
+            visualize.graficar_parametros(
+                df=df_copy,
+                parametros=[col_analisis],
+                lineas_horizontales=[
+                    (lim_ll['max_permitido'], "red"),
+                    (lim_ll['min_permitido'], "red")
+                ],
+                titulo="Análisis de Voltaje Línea a Línea"
+            )
+        # Gráfico Fase-Neutro
+        cols_ln_existentes = [col for col in cols_ln if col in df_copy.columns]
+        if "linea_neutro" in limites and cols_ln_existentes:
+            lim_ln = limites["linea_neutro"]
+            visualize.graficar_parametros(
+                df=df_copy,
+                parametros=cols_ln_existentes,
+                lineas_horizontales=[
+                    (lim_ln['max_permitido'], "red"),
+                    (lim_ln['min_permitido'], "red")
+                ],
+                titulo="Análisis de Voltaje Fase a Neutro"
+            )
+
+    return {
+        "estadisticas": stats_voltaje,
+        "limites": limites,
+        "analisis_de_eventos": analisis_eventos
+    }
+
+def analisis_de_apagones(df: pd.DataFrame, graficar: bool = False) -> dict:
+    """
+    Analiza los apagones en el suministro eléctrico, fusionando eventos cercanos y filtrando por duración mínima.
+    """
+    df_copy = df.copy()
+    if 'Fecha/hora' not in df_copy.columns:
+        raise ValueError("El DataFrame debe tener una columna 'Fecha/hora'.")
+    df_copy['Fecha/hora'] = pd.to_datetime(df_copy['Fecha/hora'])
+    df_copy = df_copy.sort_values(by='Fecha/hora').set_index('Fecha/hora')
+
+    condicion_apagon = ((df_copy['Tensión III'] == 0) | (df_copy['Tensión III'].isna())) & ((df_copy['Frecuencia'] == 0) | (df_copy['Frecuencia'].isna()))
+    
+    if not condicion_apagon.any():
+        return {'numero_total_de_apagones': 0, 'tiempo_total_sin_suministro': pd.Timedelta(0), 'detalle_de_apagones': []}
+
+    apagones_raw = _detectar_eventos_con_estado(condicion_apagon)
+    
+    apagones_fusionados = _fusionar_eventos(apagones_raw, pd.Timedelta(minutes=10), df_copy['Tensión III'], 'apagon')
+
+    # Filtrar por duración mínima
+    min_duration = pd.Timedelta(minutes=3)
+    apagones_filtrados = [e for e in apagones_fusionados if e['duracion'] >= min_duration]
+
+    total_tiempo_sin_suministro = sum([a['duracion'] for a in apagones_filtrados], pd.Timedelta(0))
+    
+    if graficar:
+        visualize.graficar_parametros(
+            df=df_copy,
+            parametros=['Tensión III', 'Frecuencia'],
+            titulo="Detección de Apagones"
+        )
+
+    return {
+        'numero_total_de_apagones': len(apagones_filtrados),
+        'tiempo_total_sin_suministro': total_tiempo_sin_suministro,
+        'detalle_de_apagones': apagones_filtrados
+    }
+
+def corriente(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    """
+    Calcula estadísticas de corriente (promedio, máximo, mínimo).
+    """
+    stats_corriente = {}
+    if extended_report:
+        corriente_cols = ['Corriente L1', 'Corriente L2', 'Corriente L3', 'Corriente III', 'Corriente de neutro']
+    else:
+        corriente_cols = ['Corriente III']
+    
+    cols_existentes = [col for col in corriente_cols if col in df.columns]
+    for col in cols_existentes:
+        stats_corriente[col] = {
+            'promedio': df[col].mean(),
+            'maximo': df[col].max(),
+            'minimo': df[col].min()
+        }
+
+    if graficar and 'Corriente III' in df.columns:
+        visualize.graficar_parametros(df, parametros=['Corriente III'], titulo="Análisis de Corriente Trifásica Total")
+
+    return stats_corriente    
+
+def frecuencia(df: pd.DataFrame, frec_nominal: float = 60.0, graficar: bool = False) -> dict:
+    """
+    Calcula estadísticas de frecuencia (promedio, máximo, mínimo) y las compara con límites.
+    """
+    resultados = {}
+    frec_col = 'Frecuencia'
+
+    if frec_col in df.columns:
+        estadisticas = {
+            'promedio': df[frec_col].mean(),
+            'maximo': df[frec_col].max(),
+            'minimo': df[frec_col].min()
+        }
+        limites = {
+            "permanente": {
+                "nominal": frec_nominal,
+                "max_permitido": frec_nominal + 0.5,
+                "min_permitido": frec_nominal - 0.5
+            }
+        }
+        resultados = {"estadisticas": estadisticas, "limites": limites}
+
+        if graficar:
+            visualize.graficar_parametros(
+                df,
+                parametros=[frec_col],
+                lineas_horizontales=[
+                    (limites['permanente']['max_permitido'], "red"),
+                    (limites['permanente']['min_permitido'], "red")
+                ],
+                titulo="Análisis de Frecuencia"
+            )
+
+    return resultados
+
+def factor_potencia(df: pd.DataFrame, graficar: bool = False) -> dict:
+    """
+    Calcula y analiza el factor de potencia desde múltiples fuentes.
+    """
+    _, fp_mensual = agregar_factor_potencia_mensual(df.copy())
+    stats_instantaneo = {}
+    if 'P/S' in df.columns:
+        stats_instantaneo = {
+            'promedio': df['P/S'].mean(),
+            'maximo': df['P/S'].max(),
+            'minimo': df['P/S'].min()
+        }
+
+    limites = {"superior": 0.9, "inferior": -0.9}
+    
+    if graficar and 'P/S' in df.columns:
+        visualize.graficar_parametros(
+            df, 
+            parametros=['P/S'],
+            lineas_horizontales=[(limites['superior'], "red"), (limites['inferior'], "red")],
+            titulo="Análisis de Factor de Potencia Instantáneo (P/S)"
+        )
+
+    return {
+        "fp_mensual_calculado": fp_mensual,
+        "fp_instantaneo_stats": stats_instantaneo,
+        "limites": limites
+    }
+
+def _calculate_power_stats_with_blocks(df: pd.DataFrame, power_cols: list[str], graficar: bool = False, titulo: str = "Potencia", unit: str = "kW") -> dict:
+    """
+    Helper para calcular estadísticas de potencia, general y por bloque horario.
+    """
+    df_copy = df.copy()
+    if 'FechaHora' not in df_copy.columns:
+        if 'Fecha/hora' in df_copy.columns:
+            df_copy['FechaHora'] = pd.to_datetime(df_copy['Fecha/hora'], dayfirst=True, errors='coerce')
+        else:
+            raise ValueError("DataFrame must have a datetime column named 'FechaHora' or 'Fecha/hora'")
+    df_copy['bloque'] = df_copy['FechaHora'].apply(clasificar_bloque)
+
+    stats = {}
+    cols_existentes = [col for col in power_cols if col in df_copy.columns]
+
+    for col in cols_existentes:
+        overall_stats = {
+            'promedio': df_copy[col].mean(),
+            'maximo': df_copy[col].max(),
+            'minimo': df_copy[col].min()
+        }
+        agg_stats = df_copy.groupby('bloque')[col].agg(['mean', 'max', 'min'])
+        block_stats = {block: {'promedio': 0.0, 'maximo': 0.0, 'minimo': 0.0} for block in ['punta', 'fuera_punta_medio', 'fuera_punta_bajo']}
+        for block_name, row in agg_stats.iterrows():
+            block_stats[block_name] = {'promedio': row['mean'], 'maximo': row['max'], 'minimo': row['min']}
+        stats[col] = {'general': overall_stats, 'por_bloque': block_stats}
+        
+    if graficar and any(p in df.columns for p in power_cols):
+        visualize.graficar_parametros(df, parametros=[p for p in power_cols if p in df.columns], titulo=titulo)
+
+    return stats
+
+def potencia_activa(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    cols = ['P.Activa III', 'P.Activa III -', 'P.Activa III T'] if not extended_report else [col for col in df.columns if 'P.Activa' in col]
+    return _calculate_power_stats_with_blocks(df, ['P.Activa III T'], graficar, "Análisis de Potencia Activa Total")
+
+def potencia_reactiva(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    cols = ['P.Reactiva III T'] if not extended_report else [col for col in df.columns if 'P.Reactiva' in col]
+    return _calculate_power_stats_with_blocks(df, cols, graficar, "Análisis de Potencia Reactiva Total", "kVAr")
+
+def potencia_aparente(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    cols = ['P.Aparente III T'] if not extended_report else [col for col in df.columns if 'P.Aparente' in col]
+    return _calculate_power_stats_with_blocks(df, cols, graficar, "Análisis de Potencia Aparente Total", "kVA")
+
+def potencia_inductiva(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    cols = ['P.Inductiva III T'] if not extended_report else [col for col in df.columns if 'P.Inductiva' in col]
+    return _calculate_power_stats_with_blocks(df, cols, graficar, "Análisis de Potencia Inductiva Total", "kVAr")
+
+def potencia_capacitiva(df: pd.DataFrame, extended_report: bool = False, graficar: bool = False) -> dict:
+    cols = ['P.Capacitiva III T'] if not extended_report else [col for col in df.columns if 'P.Capacitiva' in col]
+    return _calculate_power_stats_with_blocks(df, cols, graficar, "Análisis de Potencia Capacitiva Total", "kVAr")
+
+def procesar_demanda_maxima(df_original, graficar: bool = False):
+    """
+    Procesa la demanda máxima y opcionalmente la grafica.
+    """
+    try:
+        df = df_original.copy()
+        if 'Fecha/hora' in df.columns:
+            df['Fecha/hora'] = pd.to_datetime(df['Fecha/hora'], dayfirst=True, errors='coerce')
+        elif isinstance(df.index, pd.DatetimeIndex):
+            df = df.reset_index().rename(columns={'index': 'Fecha/hora'})
+        else:
+            raise KeyError("El DataFrame no tiene columna o índice 'Fecha/hora' válido.")
+
+        df['P.Activa III NN'] = df['P.Activa III T'].clip(lower=0)
+        df = df.dropna(subset=['Fecha/hora', 'P.Activa III NN']).sort_values(by='Fecha/hora').reset_index(drop=True)
+
+        df_dmax = pd.DataFrame({'Fecha/hora': df['Fecha/hora']})
+        for offset in range(5):
+            sdata_name = f'SDATA{offset + 1}'
+            muestras = df['P.Activa III NN'].iloc[offset::5].reset_index(drop=True)
+            muestras_expandida = muestras.repeat(5).reset_index(drop=True).iloc[:len(df)]
+            df_dmax[sdata_name] = muestras_expandida
+
+        df_max15 = df_dmax[['Fecha/hora']].copy()
+        sdata_cols = [col for col in df_dmax.columns if col.startswith("SDATA")]
+        for col in sdata_cols:
+            df_max15[col] = df_dmax[col].rolling(window=15, min_periods=15).mean()
+
+        df_max15['SDATA_PROM'] = df_max15[sdata_cols].mean(axis=1)
+        df['DMAX_15min'] = df_max15['SDATA_PROM'].values
+        df_original['DMAX_15min'] = df['DMAX_15min']
+
+        df_max = df.dropna(subset=['DMAX_15min'])
+        if df_max.empty:
+            return df_original, None
+
+        dmax_fila = df_max.loc[df_max['DMAX_15min'].idxmax()]
+
+        if graficar:
+            visualize.graficar_parametros(
+                df.set_index('Fecha/hora'),
+                parametros=['P.Activa III T', 'DMAX_15min'],
+                titulo="Análisis de Demanda Máxima",
+                lineas_horizontales=[(dmax_fila['DMAX_15min'], "red")]
+            )
+
+        return df_original, dmax_fila
+
+    except Exception as e:
+        print(f"Error al procesar demanda máxima: {e}")
+        return df_original, None
 
 def calcular_sumatoria_energia(
     df: pd.DataFrame,
@@ -90,78 +505,6 @@ def agregar_factor_potencia_mensual(
     fp_m = math.cos(math.atan(kvarh_m / kwh_m)) if kwh_m else float("nan")
     return df, fp_m
 
-
-def procesar_demanda_maxima(df_original):
-    """
-    Procesa la demanda máxima calculando la media móvil de 15 minutos desplazada
-    cada 5 minutos en 5 conjuntos (SDATA1..SDATA5). Aplica la misma lógica tanto
-    para datos históricos como para datos promediados (1900-01-01).
-
-    Args:
-        df_original (pd.DataFrame): Debe tener columna o índice 'Fecha/hora' y 'P.Activa III'.
-
-    Returns:
-        tuple: (DataFrame con 'DMAX_15min', fila con demanda máxima)
-    """
-    try:
-        df = df_original.copy()
-
-        # Verificar si Fecha/hora es columna o índice
-        if 'Fecha/hora' in df.columns:
-            df['Fecha/hora'] = pd.to_datetime(df['Fecha/hora'], dayfirst=True, errors='coerce')
-        elif isinstance(df.index, pd.DatetimeIndex):
-            df = df.reset_index().rename(columns={'index': 'Fecha/hora'})
-        else:
-            raise KeyError("El DataFrame no tiene columna o índice 'Fecha/hora' válido.")
-
-        # Limpiar datos
-        df['P.Activa III NN'] = df['P.Activa III T'].clip(lower=0)
-
-        df = df.dropna(subset=['Fecha/hora', 'P.Activa III NN']).sort_values(by='Fecha/hora').reset_index(drop=True)
-
-
-        # Crear DataFrame para SDATAS
-        df_dmax = pd.DataFrame({'Fecha/hora': df['Fecha/hora']})
-
-        # Crear SDATA1 a SDATA5 desplazadas cada 5 minutos
-        for offset in range(5):
-            sdata_name = f'SDATA{offset + 1}'
-            muestras = df['P.Activa III NN'].iloc[offset::5].reset_index(drop=True)
-            muestras_expandida = muestras.repeat(5).reset_index(drop=True).iloc[:len(df)]
-            df_dmax[sdata_name] = muestras_expandida
-
-        # Calcular media móvil de 15 minutos por SDATA
-        df_max15 = df_dmax[['Fecha/hora']].copy()
-        sdata_cols = [col for col in df_dmax.columns if col.startswith("SDATA")]
-
-        for col in sdata_cols:
-            df_max15[col] = df_dmax[col].rolling(window=15, min_periods=15).mean()
-
-        # Promedio entre todas las SDATA
-        df_max15['SDATA_PROM'] = df_max15[sdata_cols].mean(axis=1)
-
-        # Resultado final
-        df['DMAX_15min'] = df_max15['SDATA_PROM'].values
-        df_original['DMAX_15min'] = df['DMAX_15min']
-
-        # Buscar el máximo (ignorando NaN)
-        df_max = df.dropna(subset=['DMAX_15min'])
-        if df_max.empty:
-            print("No hay suficientes datos para calcular la media móvil de 15 minutos.")
-            return None, None
-
-        dmax_fila = df_max.loc[df_max['DMAX_15min'].idxmax()]
-
-        print(f"\nDemanda máxima encontrada: {dmax_fila['Fecha/hora']} → {dmax_fila['DMAX_15min']:.2f} kW")
-
-        return df
-
-    except Exception as e:
-        print(f"Error al procesar demanda máxima: {e}")
-        return None, None
-
-
-
 def calcular_maxima_demanda_por_bloque(
     df: pd.DataFrame,
     tipo_demanda: str,
@@ -196,5 +539,3 @@ def calcular_maxima_demanda_por_bloque(
         dmax_bloq.setdefault(b, 0)
 
     return dmax_total, dmax_instant, dmax_bloq
-
-

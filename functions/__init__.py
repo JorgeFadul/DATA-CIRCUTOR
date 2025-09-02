@@ -1,20 +1,22 @@
-"""
-Paquete Circutor Data Analytics.
+# functions/__init__.py
 
-Re-exporta las principales APIs para que el usuario final solo tenga que
-importar desde `circutor_da`.
-"""
 from .io import cargar_datos
-from .preprocess import (
-    dividir_dataframe,
-    sub_dividir_dataframe,
-    promediar_df_por_min,
-)
+from .preprocess import dividir_dataframe, sub_dividir_dataframe, promediar_df_por_min
 from .metrics import (
+    voltaje,
+    corriente,
+    frecuencia,
+    factor_potencia,
+    potencia_activa,
+    potencia_reactiva,
+    potencia_aparente,
+    potencia_inductiva,
+    potencia_capacitiva,
     calcular_sumatoria_energia,
     agregar_factor_potencia_mensual,
     procesar_demanda_maxima,
     calcular_maxima_demanda_por_bloque,
+    analisis_de_apagones
 )
 from .tariffs import (
     calcular_BTS,
@@ -35,25 +37,30 @@ from .visualize import (
 )
 
 __all__ = [
-    # io
     "cargar_datos",
-    # preprocess
     "dividir_dataframe",
     "sub_dividir_dataframe",
-    "promediar_df_por_min",
-    # metrics
+    "voltaje",
+    "corriente",
+    "frecuencia",
+    "factor_potencia",
+    "potencia_activa",
+    "potencia_reactiva",
+    "potencia_aparente",
+    "potencia_inductiva",
+    "potencia_capacitiva",
     "calcular_sumatoria_energia",
     "agregar_factor_potencia_mensual",
     "procesar_demanda_maxima",
+    "analisis_de_apagones",
     "calcular_maxima_demanda_por_bloque",
-    # tariffs
+    "promediar_df_por_min",
     "calcular_BTS",
     "calcular_BTSH",
     "calcular_BTD",
     "calcular_BTH",
     "calcular_MTD",
     "calcular_MTH",
-    # visualize
     "graficar_parametros",
     "graficar_consumo_por_bloque",
     "graficar_demanda_maxima_por_bloque",
