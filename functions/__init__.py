@@ -16,7 +16,10 @@ from .metrics import (
     agregar_factor_potencia_mensual,
     procesar_demanda_maxima,
     calcular_maxima_demanda_por_bloque,
-    analisis_de_apagones
+    analisis_de_apagones,
+    analizar_demanda,
+    analizar_energia,
+    analizar_comparacion_tarifas
 )
 from .tariffs import (
     calcular_BTS,
@@ -34,6 +37,7 @@ from .visualize import (
     graficar_demanda_maxima_anillo,
     graficar_consumo_polar,
     graficar_demanda_maxima_polar,
+    graficar_comparacion_tarifas
 )
 
 __all__ = [
@@ -55,6 +59,9 @@ __all__ = [
     "analisis_de_apagones",
     "calcular_maxima_demanda_por_bloque",
     "promediar_df_por_min",
+    "analizar_demanda",
+    "analizar_energia",
+    "analizar_comparacion_tarifas",
     "calcular_BTS",
     "calcular_BTSH",
     "calcular_BTD",
@@ -68,4 +75,5 @@ __all__ = [
     "graficar_demanda_maxima_anillo",
     "graficar_consumo_polar",
     "graficar_demanda_maxima_polar",
+    "graficar_comparacion_tarifas",
 ]

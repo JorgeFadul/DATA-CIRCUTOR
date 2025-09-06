@@ -35,6 +35,8 @@ def graficar_parametros(
     lineas_verticales=None,
     lineas_horizontales=None,
     titulo: str = "Parámetros vs Tiempo",
+    guardar: bool = False,
+    ruta: str | None = None,
 ):
     if not parametros:
         raise ValueError("Se requiere al menos un parámetro")
@@ -85,13 +87,23 @@ def graficar_parametros(
     if limite_inferior is not None or limite_superior is not None:
         plt.ylim(limite_inferior, limite_superior)
     plt.tight_layout()
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
     plt.show()
 
 
 # --- Barras & anillo ----------------------------------------------------
 
 
-def graficar_consumo_por_bloque(data: dict[str, float], *, titulo="Consumo por Bloque"):
+def graficar_consumo_por_bloque(
+    data: dict[str, float],
+    *,
+    titulo="Consumo por Bloque",
+    guardar: bool = False,
+    ruta: str | None = None,
+):
     bloques = ["punta", "fuera_punta_medio", "fuera_punta_bajo"]
     vals = [data.get(b, 0) for b in bloques]
     plt.figure(figsize=(8, 6))
@@ -99,10 +111,20 @@ def graficar_consumo_por_bloque(data: dict[str, float], *, titulo="Consumo por B
     plt.title(titulo)
     plt.ylabel("kWh")
     plt.grid(axis="y")
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
     plt.show()
 
 
-def graficar_demanda_maxima_por_bloque(data: dict[str, float], *, titulo="Demanda Máxima por Bloque"):
+def graficar_demanda_maxima_por_bloque(
+    data: dict[str, float],
+    *,
+    titulo="Demanda Máxima por Bloque",
+    guardar: bool = False,
+    ruta: str | None = None,
+):
     bloques = ["punta", "fuera_punta_medio", "fuera_punta_bajo"]
     vals = [data.get(b, 0) for b in bloques]
     plt.figure(figsize=(8, 6))
@@ -110,10 +132,14 @@ def graficar_demanda_maxima_por_bloque(data: dict[str, float], *, titulo="Demand
     plt.title(titulo)
     plt.ylabel("kW")
     plt.grid(axis="y")
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
     plt.show()
 
 
-def _donut(data, titulo, ylabel):
+def _donut(data, titulo, ylabel, guardar=False, ruta=None):
     bloques = ["punta", "fuera_punta_medio", "fuera_punta_bajo"]
     vals = [data.get(b, 0) for b in bloques]
     plt.figure(figsize=(8, 8))
@@ -126,21 +152,32 @@ def _donut(data, titulo, ylabel):
     )
     plt.title(titulo)
     plt.ylabel(ylabel)
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
     plt.show()
 
 
-def graficar_consumo_anillo(data, *, titulo="Consumo por Bloque (Anillo)"):
-    _donut(data, titulo, "kWh")
+def graficar_consumo_anillo(
+    data, 
+    *,
+    titulo="Consumo por Bloque (Anillo)",
+    guardar: bool = False,
+    ruta: str | None = None,
+):
+    _donut(data, titulo, "kWh", guardar=guardar, ruta=ruta)
 
-
-def graficar_demanda_maxima_anillo(data, *, titulo="Demanda Máx (Anillo)"):
-    _donut(data, titulo, "kW")
+def graficar_demanda_maxima_anillo(
+    data, *, titulo="Demanda Máx (Anillo)", guardar: bool = False, ruta: str | None = None
+):
+    _donut(data, titulo, "kW", guardar=guardar, ruta=ruta)
 
 
 # --- Polar --------------------------------------------------------------
 
 
-def _polar(data, titulo, ylabel):
+def _polar(data, titulo, ylabel, guardar=False, ruta=None):
     bloques = ["fuera_punta_bajo", "punta", "fuera_punta_medio"]
     colores = ["green", "red", "orange"]
     horas = [9, 8, 7]  # anchura relativa
@@ -155,12 +192,59 @@ def _polar(data, titulo, ylabel):
     ax.set_title(titulo, va="bottom")
     ax.legend(loc="upper right")
     plt.ylabel(ylabel)
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
     plt.show()
 
 
-def graficar_consumo_polar(data, *, titulo="Consumo (polar)"):
-    _polar(data, titulo, "kWh")
+def graficar_consumo_polar(
+    data, *, titulo="Consumo (polar)", guardar: bool = False, ruta: str | None = None
+):
+    _polar(data, titulo, "kWh", guardar=guardar, ruta=ruta)
 
+def graficar_demanda_maxima_polar(
+    data, *, titulo="Demanda Máx (polar)", guardar: bool = False, ruta: str | None = None
+):
+    _polar(data, titulo, "kW", guardar=guardar, ruta=ruta)
 
-def graficar_demanda_maxima_polar(data, *, titulo="Demanda Máx (polar)"):
-    _polar(data, titulo, "kW")
+# --- Comparación de tarifas ---------------------------------------------
+
+def graficar_comparacion_tarifas(
+    data: dict[str, dict[str, float]],
+    *,
+    titulo="Comparación de Costos por Tarifa",
+    guardar: bool = False,
+    ruta: str | None = None,
+):
+    """
+    Grafica una comparación de costos entre diferentes tarifas.
+    """
+    nombres_tarifas = list(data.keys())
+    componentes = sorted({comp for costos in data.values() for comp in costos.keys()})
+    valores = {comp: [data[tarifa].get(comp, 0) for tarifa in nombres_tarifas] for comp in componentes}
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    bottom = np.zeros(len(nombres_tarifas))
+
+    for componente, valores_componente in valores.items():
+        p = ax.bar(nombres_tarifas, valores_componente, label=componente, bottom=bottom)
+        bottom += np.array(valores_componente, dtype=float)
+        # 👉 Etiquetas con signo $ y separador de miles
+        etiquetas = [f"${v:,.2f}" for v in valores_componente]
+        ax.bar_label(p, labels=etiquetas, label_type="center")
+
+    ax.set_title(titulo)
+    ax.set_ylabel("Costo ($)")
+    ax.legend(title="Componentes de Costo")
+    plt.xticks(rotation=45, ha="right")
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    plt.tight_layout()
+
+    if guardar:
+        if ruta is None:
+            raise ValueError("Se debe especificar una ruta para guardar la gráfica.")
+        plt.savefig(ruta)
+
+    plt.show()

@@ -35,15 +35,18 @@ analisis_potencia_reactiva = potencia_reactiva(df, extended_report=EXTENDED_REPO
 analisis_potencia_aparente = potencia_aparente(df, extended_report=EXTENDED_REPORT, graficar=False)
 analisis_potencia_inductiva = potencia_inductiva(df, extended_report=EXTENDED_REPORT, graficar=True)
 analisis_potencia_capacitiva = potencia_capacitiva(df, extended_report=EXTENDED_REPORT, graficar=True)
-analisis_apagones = analisis_de_apagones(df, graficar=False)
+analisis_apagones = analisis_de_apagones(df, graficar=True)
 
 # --- ANÁLISIS DE ENERGÍA Y DEMANDA ---
-sum_actual, sum_bloque, energia_extrapolada, consumo_bloques_extrapolado = calcular_sumatoria_energia(df, tipo_energia)
-dmax_total, dmax_fecha, dmax_bloques = calcular_maxima_demanda_por_bloque(df, tipo_demanda)
-
+analisis_energia_resultados = analizar_energia(df, tipo_energia, graficar=True)
+analisis_demanda_resultados = analizar_demanda(df, tipo_demanda, graficar=True)
 
 # --- CÁLCULOS DE TARIFAS ---
 fp_mensual = analisis_factor_potencia["fp_mensual_calculado"]
+consumo_bloques_extrapolado = analisis_energia_resultados['consumo_extrapolado_por_bloque']
+dmax_total = analisis_demanda_resultados['demanda_maxima_total']
+dmax_bloques = {k: v['valor'] for k, v in analisis_demanda_resultados['demanda_maxima_por_bloque'].items()}
+
 resultados_tarifas = {}
 
 for periodo in periodos_disponibles:
@@ -71,22 +74,32 @@ for periodo in periodos_disponibles:
             "total": total,
         }
 
+analisis_comparacion = analizar_comparacion_tarifas(resultados_tarifas, graficar=True)
+
 # --- INFORME FINAL ---
 print(f"\n===== INFORME DE ANÁLISIS ELÉCTRICO PARA: {titulo} =====")
 
 # --- Resumen de Consumo y Demanda ---
-print("\n\n===== RESUMEN DE CONSUMO Y DEMANDA =====")
-print(f"\nEnergía mensual extrapolada: {energia_extrapolada:.2f} kWh")
+print("\n\n===== ANÁLISIS DE ENERGÍA ====")
+print(f"\nEnergía mensual extrapolada: {analisis_energia_resultados['energia_extrapolada_total']:.2f} kWh")
 print("\nConsumo por bloques (kWh, extrapolado):")
-for bloque, val in consumo_bloques_extrapolado.items():
+for bloque, val in analisis_energia_resultados['consumo_extrapolado_por_bloque'].items():
+    horario = analisis_energia_resultados['horarios_bloques'].get(bloque, "Horario no definido")
     print(f"  {bloque.title()}: {val:.2f} kWh")
-print(f"\nDemanda máxima mensual (promedio 15 min): {dmax_total:.2f} kW")
-print("Demanda máxima por bloque (kW):")
-for bloque, val in dmax_bloques.items():
-    print(f"  {bloque.title()}: {val:.2f} kW")
+if analisis_energia_resultados['grafico_path']:
+    print(f"\nGráfico de consumo de energía por bloque guardado en '{analisis_energia_resultados['grafico_path']}'")
+
+print("\n\n===== ANÁLISIS DE DEMANDA ====")
+print(f"\nDemanda máxima mensual (promedio 15 min): {analisis_demanda_resultados['demanda_maxima_total']:.2f} kW, registrada el {analisis_demanda_resultados['fecha_demanda_maxima_total']}")
+print("\nDemanda máxima por bloque (kW):")
+for bloque, data in analisis_demanda_resultados['demanda_maxima_por_bloque'].items():
+    print(f"  {bloque.title()}: {data['valor']:.2f} kW, registrada el {data['fecha']}")
+if analisis_demanda_resultados['grafico_path']:
+    print(f"\nGráfico de demanda máxima por bloque guardado en '{analisis_demanda_resultados['grafico_path']}'")
+
 
 # --- Análisis de Calidad de Energía ---
-print("\n\n===== ANÁLISIS DE CALIDAD DE ENERGÍA =====")
+print("\n\n===== ANÁLISIS DE CALIDAD DE ENERGÍA ====")
 
 # Sección de Voltaje
 print("\n--- ANÁLISIS DE VOLTAJE ---")
@@ -125,6 +138,10 @@ if analisis_voltaje["analisis_de_eventos"]:
             for ev in eventos['eventos_de_voltaje_bajo']:
                 print(f"      - De {ev['inicio']} a {ev['fin']} (Duración: {ev['duracion']})")
                 print(f"        Valor Mínimo: {ev['valor_minimo']:.2f} V en {ev['fecha_valor_minimo']}")
+if analisis_voltaje["graficos_paths"]:
+    print("\n  Gráficos de Voltaje:")
+    for tipo, path in analisis_voltaje["graficos_paths"].items():
+        print(f"    - {tipo.replace('_', ' ').title()}: {path}")
 
 # Sección de Corriente
 print("\n--- ANÁLISIS DE CORRIENTE ---")
@@ -150,12 +167,25 @@ if analisis_frecuencia:
         print(f"    Máx. Permitido: {limites_perm['max_permitido']:.2f} Hz")
         print(f"    Mín. Permitido: {limites_perm['min_permitido']:.2f} Hz")
 
-    if 'temporal' in analisis_frecuencia['limites']:
-        print("\n  Límites de Frecuencia (Temporal):")
-        limites_temp = analisis_frecuencia['limites']['temporal']
-        print(f"    Referencia:    {limites_temp['nominal']:.2f} Hz")
-        print(f"    Máx. Permitido: {limites_temp['max_permitido']:.2f} Hz")
-        print(f"    Mín. Permitido: {limites_temp['min_permitido']:.2f} Hz")
+    if analisis_frecuencia.get("analisis_de_eventos"):
+        print("\n--- EVENTOS DE FRECUENCIA FUERA DE RANGO ---")
+        for col, eventos in analisis_frecuencia["analisis_de_eventos"].items():
+            print(f"  Análisis para: {col}")
+            print(f"    Tiempo total fuera de rango: {eventos['tiempo_total_fuera_de_rango']}")
+            if eventos.get('eventos_de_frecuencia_alta'):
+                print("    Eventos de Frecuencia Alta:")
+                for ev in eventos['eventos_de_frecuencia_alta']:
+                    print(f"      - De {ev['inicio']} a {ev['fin']} (Duración: {ev['duracion']})")
+                    if 'valor_maximo' in ev:
+                        print(f"        Valor Máximo: {ev['valor_maximo']:.3f} Hz en {ev['fecha_valor_maximo']}")
+            if eventos.get('eventos_de_frecuencia_baja'):
+                print("    Eventos de Frecuencia Baja:")
+                for ev in eventos['eventos_de_frecuencia_baja']:
+                    print(f"      - De {ev['inicio']} a {ev['fin']} (Duración: {ev['duracion']})")
+                    if 'valor_minimo' in ev:
+                        print(f"        Valor Mínimo: {ev['valor_minimo']:.3f} Hz en {ev['fecha_valor_minimo']}")
+    if analisis_frecuencia['grafico_path']:
+        print(f"\n  Gráfico de Frecuencia guardado en: {analisis_frecuencia['grafico_path']}")
 
 # Sección de Factor de Potencia
 print("\n--- ANÁLISIS DE FACTOR DE POTENCIA ---")
@@ -171,7 +201,7 @@ print(f"  Límite Superior: {limites_fp['superior']}")
 print(f"  Límite Inferior: {limites_fp['inferior']}")
 
 # --- ANÁLISIS DE POTENCIA ---
-print("\n\n===== ANÁLISIS DE POTENCIA =====")
+print("\n\n===== ANÁLISIS DE POTENCIA ====")
 
 def print_power_analysis(title, analysis_result, unit="kW"):
     print(f"\n--- {title} ---")
@@ -197,7 +227,7 @@ print_power_analysis("Potencia Inductiva", analisis_potencia_inductiva, unit="kV
 print_power_analysis("Potencia Capacitiva", analisis_potencia_capacitiva, unit="kVAr")
 
 # --- Análisis de Apagones ---
-print("\n\n===== ANÁLISIS DE APAGONES =====")
+print("\n\n===== ANÁLISIS DE APAGONES ====")
 if analisis_apagones['numero_total_de_apagones'] > 0:
     print(f"  Número total de apagones: {analisis_apagones['numero_total_de_apagones']}")
     print(f"  Tiempo total sin suministro: {analisis_apagones['tiempo_total_sin_suministro']}")
@@ -206,9 +236,11 @@ if analisis_apagones['numero_total_de_apagones'] > 0:
         print(f"    - Apagón {i+1}: De {apagon['inicio']} a {apagon['fin']} (Duración: {apagon['duracion']})")
 else:
     print("  No se detectaron apagones en el periodo analizado.")
+if analisis_apagones['grafico_path']:
+    print(f"\n  Gráfico de Apagones guardado en: {analisis_apagones['grafico_path']}")
 
 # --- Comparación de Tarifas ---
-print("\n\n===== COMPARACIÓN DE TARIFAS =====")
+print("\n\n===== COMPARACIÓN DE TARIFAS ====")
 for periodo, tarifas in resultados_tarifas.items():
     print(f"\nPERIODO {periodo}:")
     for tarifa, valores in tarifas.items():
@@ -217,5 +249,7 @@ for periodo, tarifas in resultados_tarifas.items():
         print(f"    Cargo por demanda:   B/. {valores['cargo_demanda']:.2f}")
         print(f"    Penalización FP:     B/. {valores['cargo_fp']:.2f}")
         print(f"    TOTAL A PAGAR:       B/. {valores['total']:.2f}")
+    
 
-print("\n===== FIN DEL INFORME =====")
+
+print("\n===== FIN DEL INFORME ====")
